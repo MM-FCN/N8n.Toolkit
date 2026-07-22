@@ -17,7 +17,7 @@ This is a test.
 b64 = base64.b64encode(eml.encode('utf-8')).decode('utf-8')
 payload = json.dumps({"eml_payload": b64}).encode('utf-8')
 
-url = 'http://127.0.0.1:8000/parse-eml'
+url = 'http://szh2vm0372.apac.bosch.com:8000/parse-eml'
 headers = {'Content-Type': 'application/json'}
 
 for i in range(20):
