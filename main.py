@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from pydantic import BaseModel
 import base64
 import email
@@ -38,7 +38,7 @@ def extract_addresses(header_value: Optional[str]):
 
 
 @app.post("/parse-eml")
-async def parse_eml(request: EmlRequest, include_attachments: bool = Query(False, description="是否在返回中包含附件的 base64 数据")):
+async def parse_eml(request: EmlRequest):
     try:
         eml_bytes = base64.b64decode(request.eml_payload)
         msg = email.message_from_bytes(eml_bytes, policy=policy.default)
@@ -94,7 +94,8 @@ async def parse_eml(request: EmlRequest, include_attachments: bool = Query(False
                     payload = part.get_content()
                     payload_bytes = _to_bytes(payload, part.get_content_charset())
                     size = len(payload_bytes)
-                    data_b64 = base64.b64encode(payload_bytes).decode("utf-8") if (include_attachments and size > 0) else None
+                    # 始终将附件内容以 base64 形式返回，客户端决定是否保存/下载
+                    data_b64 = base64.b64encode(payload_bytes).decode("utf-8") if size > 0 else None
                     result["attachments"].append({
                         "filename": filename,
                         "content_type": content_type,
