@@ -4,9 +4,9 @@ import urllib.request
 
 payload = json.dumps(
     {
-        "customer_name": "enx-demo",
-        "container_no": ["ENX-0001", "ENX-0002"],
-        "resume_url": "https://example.com/resume/enx-task-001",
+        "customerName": "enx-demo",
+        "containerNo": ["ENX-0001", "ENX-0002"],
+        "resumeUrl": "https://example.com/resume/enx-task-001",
     }
 ).encode("utf-8")
 

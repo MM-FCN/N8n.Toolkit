@@ -4,13 +4,13 @@ import urllib.request
 
 payload = json.dumps(
     {
-        "customer_name": "generic-customer",
-        "container_no": ["GEN-1001", "GEN-1002"],
-        "resume_url": "https://example.com/resume/default-task-001",
+        "customerName": "customer",
+        "containerNo": ["GEN-1001", "GEN-1002"],
+        "resumeUrl": "https://example.com/resume/default-task-001",
     }
 ).encode("utf-8")
 
-url = "http://127.0.0.1:8000/api/customer-input"
+url = "http://szh2vm0372.apac.bosch.com:8000/api/customer-input"
 headers = {"Content-Type": "application/json"}
 
 for _ in range(20):

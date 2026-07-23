@@ -160,9 +160,9 @@ class EmlRequest(BaseModel):
 
 
 class CustomerInputApiRequest(BaseModel):
-    customer_name: str
-    container_no: list[str]
-    resume_url: str
+    customerName: str
+    containerNo: list[str]
+    resumeUrl: str
 
 
 @app.post("/api/parse-eml")
@@ -180,15 +180,15 @@ async def parse_eml(request: EmlRequest):
 @app.post("/api/customer-input")
 async def create_customer_input(request: CustomerInputApiRequest):
     logger.info(
-        "/api/customer-input called | customer_name=%s | container_count=%s",
-        request.customer_name,
-        len(request.container_no),
+        "/api/customer-input called | customerName=%s | container_count=%s",
+        request.customerName,
+        len(request.containerNo),
     )
     try:
         crawl_request = CrawlCustomerInputRequest(
-            customer_name=request.customer_name,
-            container_no=request.container_no,
-            resume_url=request.resume_url,
+            customer_name=request.customerName,
+            container_no=request.containerNo,
+            resume_url=request.resumeUrl,
         )
         crawl_configuration = None
         if isinstance(CUSTOMER_INPUT_DATA_ROOT, str) and CUSTOMER_INPUT_DATA_ROOT.strip():
