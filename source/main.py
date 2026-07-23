@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
@@ -34,9 +35,18 @@ def _load_app_config() -> dict[str, Any]:
 
 
 APP_CONFIG = _load_app_config()
-CUSTOMER_INPUT_DATA_ROOT = APP_CONFIG.get("DataRootPath")
-LOG_ROOT_PATH = APP_CONFIG.get("LogRootPath", "logs")
-LOG_RETENTION_DAYS = APP_CONFIG.get("LogRetentionDays", 10)
+
+
+def _get_config_value(env_name: str, config_key: str, default: Any = None) -> Any:
+    env_value = os.getenv(env_name)
+    if env_value is not None and env_value.strip():
+        return env_value.strip()
+    return APP_CONFIG.get(config_key, default)
+
+
+CUSTOMER_INPUT_DATA_ROOT = _get_config_value("DataRootPath", "DataRootPath")
+LOG_ROOT_PATH = _get_config_value("LogRootPath", "LogRootPath", "logs")
+LOG_RETENTION_DAYS = _get_config_value("LogRetentionDays", "LogRetentionDays", 10)
 
 
 def _resolve_path(path_value: Any, fallback_dir_name: str) -> Path:

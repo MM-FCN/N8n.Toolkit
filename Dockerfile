@@ -14,7 +14,8 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py ./
+COPY source ./source
+COPY appsettings.json ./
 
 RUN useradd --create-home --shell /usr/sbin/nologin appuser \
     && chown -R appuser:appuser /app
@@ -23,4 +24,4 @@ ENV DataRootPath=/data
 VOLUME ["/data"]
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "source.main:app", "--host", "0.0.0.0", "--port", "8000"]
