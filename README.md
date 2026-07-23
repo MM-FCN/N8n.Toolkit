@@ -6,7 +6,7 @@
 
 ```bash
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn source.main:app --reload
 ```
 
 示例请求（POST /parse-eml）：
@@ -25,9 +25,9 @@ uvicorn main:app --reload
 - **启动服务（开发，带热重载）**: 在项目根目录运行：
 
 ```bash
-py -m uvicorn main:app --reload
+py -m uvicorn source.main:app --reload
 # 或（如果在 Unix 系统或已设置 python 到 python 命令）：
-# python -m uvicorn main:app --reload
+# python -m uvicorn source.main:app --reload
 ```
 
 - **停止服务**: 在运行 uvicorn 的终端中按 `Ctrl+C`，或在另一个终端杀掉进程：

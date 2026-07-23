@@ -9,14 +9,18 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi import Request
 from pydantic import BaseModel
-from email_parse import parse_eml_b64
-from crawl_request import CustomerInputRequest as CrawlCustomerInputRequest
-from crawl_request import crawlRequest
+from source.email_parse import parse_eml_b64
+from source.crawl_request import CustomerInputRequest as CrawlCustomerInputRequest
+from source.crawl_request import crawlRequest
 
 app = FastAPI()
 
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
 def _load_app_config() -> dict[str, Any]:
-    config_path = Path(__file__).with_name("appsettings.json")
+    config_path = PROJECT_ROOT / "appsettings.json"
     if not config_path.exists():
         return {}
 
@@ -36,14 +40,13 @@ LOG_RETENTION_DAYS = APP_CONFIG.get("LogRetentionDays", 10)
 
 
 def _resolve_path(path_value: Any, fallback_dir_name: str) -> Path:
-    base_dir = Path(__file__).resolve().parent
     if isinstance(path_value, str) and path_value.strip():
         configured_path = Path(path_value.strip())
         if configured_path.is_absolute():
             return configured_path
-        return base_dir / configured_path
+        return PROJECT_ROOT / configured_path
 
-    return base_dir / fallback_dir_name
+    return PROJECT_ROOT / fallback_dir_name
 
 
 def _normalize_retention_days(value: Any, fallback: int = 10) -> int:
@@ -184,7 +187,7 @@ async def create_customer_input(request: CustomerInputApiRequest):
         result = await crawlRequest(
             request=crawl_request,
             configuration=crawl_configuration,
-            content_root_path=".",
+            content_root_path=str(PROJECT_ROOT),
             logger=logger,
         )
         logger.info(

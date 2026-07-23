@@ -24,7 +24,7 @@ payload = json.dumps({"eml_payload": b64}).encode('utf-8')
 logger.info("Request payload bytes length: %s", len(payload))
 logger.info("Request payload json: %s", payload.decode('utf-8'))
 
-url = 'http://szh2vm0372.apac.bosch.com:8000/parse-eml'
+url = 'http://szh2vm0372.apac.bosch.com:8000/api/parse-eml'
 headers = {'Content-Type': 'application/json'}
 
 try:
