@@ -19,7 +19,8 @@ COPY main.py ./
 RUN useradd --create-home --shell /usr/sbin/nologin appuser \
     && chown -R appuser:appuser /app
 USER appuser
-
+ENV DataRootPath=/data
+VOLUME ["/data"]
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
