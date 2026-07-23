@@ -68,24 +68,49 @@ class EmailParser:
                 return payload.encode(charset or "utf-8", errors="replace")
             return b""
 
+        def _to_text(payload, charset: Optional[str]) -> str:
+            if isinstance(payload, str):
+                return payload
+            if isinstance(payload, bytes):
+                try:
+                    return payload.decode(charset or "utf-8", errors="replace")
+                except Exception:
+                    return payload.decode("utf-8", errors="replace")
+            return ""
+
+        def _read_part_content(part) -> Any:
+            try:
+                return part.get_content()
+            except Exception:
+                try:
+                    decoded = part.get_payload(decode=True)
+                    return decoded if decoded is not None else ""
+                except Exception:
+                    return ""
+
         if msg.is_multipart():
-            for part in msg.iter_parts():
+            # Walk all nested MIME parts so text under multipart/alternative
+            # or multipart/related is also discovered.
+            for part in msg.walk():
+                if part.is_multipart():
+                    continue
+
                 content_type = part.get_content_type()
                 disposition = part.get_content_disposition()
+                filename = _decode_header_str(part.get_filename())
 
-                if disposition is None:
-                    try:
-                        payload = part.get_content()
-                        if content_type == "text/plain" and not result["body_text"]:
-                            result["body_text"] = payload
-                        elif content_type == "text/html" and not result["body_html"]:
-                            result["body_html"] = payload
-                    except Exception:
-                        pass
+                is_attachment = disposition == "attachment" or bool(filename)
 
-                if disposition == "attachment" or part.get_filename():
-                    filename = _decode_header_str(part.get_filename())
-                    payload = part.get_content()
+                if not is_attachment and content_type in {"text/plain", "text/html"}:
+                    payload = _read_part_content(part)
+                    payload_text = _to_text(payload, part.get_content_charset())
+                    if content_type == "text/plain" and not result["body_text"]:
+                        result["body_text"] = payload_text
+                    elif content_type == "text/html" and not result["body_html"]:
+                        result["body_html"] = payload_text
+
+                if is_attachment:
+                    payload = _read_part_content(part)
                     payload_bytes = _to_bytes(payload, part.get_content_charset())
                     size = len(payload_bytes)
                     data_b64 = base64.b64encode(payload_bytes).decode("utf-8") if size > 0 else None

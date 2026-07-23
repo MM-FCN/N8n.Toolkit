@@ -1,7 +1,14 @@
 import base64
 import json
+import logging
 import urllib.request
 import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger("run_eml_summary")
 
 eml_path = r"C:\fcn\PRE ALERT MAWB 105-57500063 MAD-KIX R BOSCH _AE 079200_.eml"
 
@@ -14,6 +21,8 @@ except Exception as e:
 
 b64 = base64.b64encode(eml_bytes).decode('utf-8')
 payload = json.dumps({"eml_payload": b64}).encode('utf-8')
+logger.info("Request payload bytes length: %s", len(payload))
+logger.info("Request payload json: %s", payload.decode('utf-8'))
 
 url = 'http://szh2vm0372.apac.bosch.com:8000/parse-eml'
 headers = {'Content-Type': 'application/json'}
