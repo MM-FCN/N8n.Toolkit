@@ -1,0 +1,25 @@
+import json
+import time
+import urllib.request
+
+payload = json.dumps(
+    {
+        "customer_name": "generic-customer",
+        "container_no": ["GEN-1001", "GEN-1002"],
+        "resume_url": "https://example.com/resume/default-task-001",
+    }
+).encode("utf-8")
+
+url = "http://127.0.0.1:8000/api/customer-input"
+headers = {"Content-Type": "application/json"}
+
+for _ in range(20):
+    try:
+        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            print(resp.read().decode("utf-8"))
+            break
+    except Exception:
+        time.sleep(0.5)
+else:
+    print("Failed to reach server")
