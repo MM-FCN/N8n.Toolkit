@@ -8,11 +8,19 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi import Request
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictInt, StrictStr
+from starlette.concurrency import run_in_threadpool
 from source.email_parse import parse_eml_b64
-from source.crawl_request import CustomerInputRequest as CrawlCustomerInputRequest
-from source.crawl_request import crawlRequest
+from source.rabbitmq_publisher import (
+    RabbitMqConfigurationError,
+    RabbitMqPublishError,
+    RabbitMqRouteNotFoundError,
+    load_rabbitmq_settings,
+    publish_message,
+    resolve_route_key,
+)
 
 app = FastAPI()
 
@@ -44,7 +52,6 @@ def _get_config_value(env_name: str, config_key: str, default: Any = None) -> An
     return APP_CONFIG.get(config_key, default)
 
 
-CUSTOMER_INPUT_DATA_ROOT = _get_config_value("DataRootPath", "DataRootPath")
 LOG_ROOT_PATH = _get_config_value("LogRootPath", "LogRootPath", "logs")
 LOG_RETENTION_DAYS = _get_config_value("LogRetentionDays", "LogRetentionDays", 10)
 
@@ -119,7 +126,6 @@ logger = logging.getLogger("n8n_toolkit_api")
 @app.on_event("startup")
 async def on_startup() -> None:
     logger.info("Service startup complete")
-    logger.info("Configured DataRootPath: %s", CUSTOMER_INPUT_DATA_ROOT or "<default:data>")
     logger.info("Configured LogRootPath: %s", ACTIVE_LOG_ROOT_DIR)
     logger.info("Configured LogRetentionDays: %s", ACTIVE_LOG_RETENTION_DAYS)
 
@@ -159,10 +165,9 @@ class EmlRequest(BaseModel):
     eml_payload: str
 
 
-class CustomerInputApiRequest(BaseModel):
-    customerName: str
-    containerNo: list[str]
-    resumeUrl: str
+class SendMqRequest(BaseModel):
+    category: StrictInt | StrictStr
+    content: StrictStr
 
 
 @app.post("/api/parse-eml")
@@ -177,34 +182,42 @@ async def parse_eml(request: EmlRequest):
         return {"status": "error", "message": str(e)}
 
 
-@app.post("/api/customer-input")
-async def create_customer_input(request: CustomerInputApiRequest):
-    logger.info(
-        "/api/customer-input called | customerName=%s | container_count=%s",
-        request.customerName,
-        len(request.containerNo),
-    )
-    try:
-        crawl_request = CrawlCustomerInputRequest(
-            customer_name=request.customerName,
-            container_no=request.containerNo,
-            resume_url=request.resumeUrl,
-        )
-        crawl_configuration = None
-        if isinstance(CUSTOMER_INPUT_DATA_ROOT, str) and CUSTOMER_INPUT_DATA_ROOT.strip():
-            crawl_configuration = {"DataRootPath": CUSTOMER_INPUT_DATA_ROOT.strip()}
+@app.post("/api/send-mq")
+async def send_mq(request: SendMqRequest):
+    if isinstance(request.category, str) and not request.category.strip():
+        raise HTTPException(status_code=422, detail="category must not be empty")
+    category = request.category
+    normalized_category = str(category).strip()
 
-        result = await crawlRequest(
-            request=crawl_request,
-            configuration=crawl_configuration,
-            content_root_path=str(PROJECT_ROOT),
-            logger=logger,
+    try:
+        content = json.loads(request.content)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="content must be a valid JSON string") from None
+
+    try:
+        settings = load_rabbitmq_settings(_get_config_value)
+    except RabbitMqConfigurationError:
+        logger.error("/api/send-mq rejected due to invalid RabbitMQ configuration")
+        raise HTTPException(status_code=500, detail="RabbitMQ service configuration is invalid") from None
+
+    try:
+        route_key = resolve_route_key(settings, normalized_category)
+    except RabbitMqRouteNotFoundError:
+        raise HTTPException(status_code=422, detail="category has no configured RabbitMQ route") from None
+
+    body = json.dumps(
+        {"category": category, "content": content},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    try:
+        await run_in_threadpool(
+            publish_message, settings, body, normalized_category, route_key
         )
-        logger.info(
-            "/api/customer-input completed successfully | file_path=%s",
-            result.get("file_path"),
-        )
-        return {"status": "success", "data": result}
-    except Exception as e:
-        logger.exception("/api/customer-input failed")
-        return {"status": "error", "message": str(e)}
+    except RabbitMqPublishError:
+        logger.error("/api/send-mq failed to publish category=%s", category)
+        raise HTTPException(status_code=503, detail="RabbitMQ service is unavailable") from None
+
+    logger.info("/api/send-mq published category=%s", category)
+    return {"status": "success", "message": "Message published"}
